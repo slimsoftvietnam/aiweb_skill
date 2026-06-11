@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Migration secrets & generated output
+tools/migration/config.env
+tools/migration/output/*.json
+tools/migration/output/*.jsonl
+tools/migration/output/*.csv
+tools/migration/output/*.xlsx
+tools/migration/output/*.html
+
+# OS
+.DS_Store
+Thumbs.db
