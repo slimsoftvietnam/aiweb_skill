@@ -10,6 +10,7 @@ from urllib.parse import urljoin, urlparse, urlunparse
 from bs4 import BeautifulSoup
 
 IMAGE_EXTENSIONS = (".jpg", ".jpeg", ".png", ".gif", ".webp", ".svg")
+FONT_EXTENSIONS = (".woff2", ".woff", ".ttf", ".otf", ".eot")
 SKIP_HOSTS = {
     "fonts.googleapis.com",
     "fonts.gstatic.com",
@@ -98,6 +99,9 @@ def normalize_html_urls(html: str, base_url: str) -> str:
                     parts.append(" ".join(bits))
                 tag["srcset"] = ", ".join(parts)
 
+        if tag.has_attr("data-style") and isinstance(tag.get("data-style"), str):
+            tag["data-style"] = _normalize_css_urls(tag["data-style"], base)
+
     style_tags = soup.find_all("style")
     for style in style_tags:
         if style.string:
@@ -140,6 +144,21 @@ def looks_like_image(url: str) -> bool:
     return False
 
 
+def looks_like_font(url: str) -> bool:
+    path = urlparse(url).path.lower()
+    return any(path.endswith(ext) for ext in FONT_EXTENSIONS) or "/fonts/" in path or "/font/" in path
+
+
+def looks_like_css(url: str) -> bool:
+    path = urlparse(url).path.lower()
+    return path.endswith(".css") or "/css/" in path
+
+
+def looks_like_js(url: str) -> bool:
+    path = urlparse(url).path.lower()
+    return path.endswith((".js", ".mjs")) or "/js/" in path or "/javascript/" in path
+
+
 def is_migratable_asset(url: str) -> bool:
     if not url:
         return False
@@ -147,7 +166,12 @@ def is_migratable_asset(url: str) -> bool:
     if host in SKIP_HOSTS:
         return False
     if host in MIGRATABLE_HOSTS or host.endswith(".slimcrm.vn") or host.endswith(".slim.vn"):
-        return looks_like_image(url)
+        return (
+            looks_like_image(url)
+            or looks_like_font(url)
+            or looks_like_css(url)
+            or looks_like_js(url)
+        )
     return False
 
 
@@ -156,17 +180,30 @@ def extract_asset_urls(html: str, base_url: str) -> list[str]:
     base = page_base_url(base_url)
     found: set[str] = set()
 
-    for tag in soup.find_all(["img", "source", "link", "meta"]):
+    for tag in soup.find_all(["img", "source", "link", "script", "meta"]):
+        if tag.name == "link":
+            rel = tag.get("rel") or []
+            if isinstance(rel, str):
+                rel = [rel]
+            is_stylesheet = "stylesheet" in rel
+            is_icon = any(r in rel for r in ("icon", "shortcut icon", "apple-touch-icon"))
+            if not is_stylesheet and not is_icon:
+                continue
+        if tag.name == "script" and not tag.has_attr("src"):
+            continue
+
         for attr in ("src", "data-src", "href", "content"):
             if not tag.has_attr(attr):
                 continue
             val = tag.get(attr)
             if not isinstance(val, str):
                 continue
-            if tag.name == "link" and tag.get("rel") not in (["icon"], ["shortcut icon"], ["apple-touch-icon"]):
-                if "icon" not in (tag.get("rel") or []):
+            if tag.name == "meta" and attr == "content":
+                if not val.startswith(("http://", "https://", "/")):
                     continue
             url = normalize_url(val, base)
+            if tag.name == "link" and "stylesheet" in (tag.get("rel") or []):
+                url = resolve_slimweb_file_url(url) or url
             if is_migratable_asset(url):
                 found.add(url)
 
@@ -182,6 +219,7 @@ def extract_asset_urls(html: str, base_url: str) -> list[str]:
     for match in re.finditer(r"url\(([^)]+)\)", html):
         raw = match.group(1).strip("'\"")
         url = normalize_url(raw, base)
+        url = resolve_slimweb_file_url(url) or url
         if is_migratable_asset(url):
             found.add(url)
 
