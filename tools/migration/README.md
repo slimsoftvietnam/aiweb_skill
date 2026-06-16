@@ -1,41 +1,53 @@
-# Migration Tools → AI Web / AIPage
+# SlimCRM → AI Web Migration Tools
 
-Pipeline migrate nội dung từ domain cũ (vd. slimcrm.vn) vào [AIPage](https://github.com/slimsoftvietnam/aiweb).
+Pipeline migrate **landing slimcrm.vn** (không gồm blog.slimcrm.vn mặc định).
 
-Repo skill: [aiweb_skill](https://github.com/slimsoftvietnam/aiweb_skill).
+## Asset migrate
+
+Import từ domain cũ: **ảnh, CSS, JS, font** → `uploads/migrate/{domain}/`.
+
+**Giữ nguyên CDN (không import):** Google Fonts, GA, GTM, jsdelivr, cdnjs.
+
+Catalog read-only: `aiweb_core/data/migration/{domain}.json` + tab **Tài nguyên migrate** (Quản lý ảnh).
+
+URL trùng giữa nhiều trang → import **một lần**, các trang sau **reuse** qua `migration_assets`.
 
 ## Cài đặt
 
 ```bash
-pip install -r requirements.txt
-cp config.example.env config.env
+pip install -r tools/migration/requirements.txt
+cp tools/migration/config.example.env tools/migration/config.env
 ```
 
-Chỉnh `config.env`:
+Tạo API key: AIPage → **Cài đặt → API Agent** (scope migration) → copy vào `MIGRATION_API_KEY`.
 
-- `AIWEB_BASE` — URL core (vd. `http://localhost/aiweb/aiweb_core`)
-- `AIWEB_ROOT` — đường dẫn repo **aiweb** (có `aiweb_core/`)
-- `MIGRATION_API_KEY` — tạo trong AIPage → Cài đặt → API Agent
-
-## Ping API
-
-```bash
-python runners/import_manifest.py --ping-only --env config.env
+```env
+AIWEB_BASE=http://localhost/aiweb
+AIWEB_ROOT=D:/Xampp/htdocs/aiweb
+MIGRATION_API_KEY=aiw_...
 ```
 
-## Ví dụ SlimCRM landing
+## Chạy slimcrm.vn (full landing)
 
 ```bash
+cd tools/migration
+
+# 1. Inventory
 python scrapers/slimcrm_recon.py
+
+# 2. Extract manifest (pilot trước nếu cần)
+python scrapers/slimcrm_extract.py --pilot
 python scrapers/slimcrm_extract.py
-python runners/import_manifest.py --env config.env --file output/slimcrm_manifest_landing.json --publish
+
+# 3. Import + publish
+python runners/import_manifest.py --env config.env \
+  --file output/slimcrm_manifest_landing.json --force --publish
 ```
+
+## URL công khai sau migrate
+
+`https://your-domain/{slug}` — ví dụ `/home`, `/tinhnang` (không phải `/p/{slug}`).
 
 ## Blog
 
-```bash
-python scrapers/slimcrm_blog_scan.py
-python runners/import_blog_all.py --env config.env
-```
-
-URL công khai sau migrate: `https://your-domain/{slug}`
+Thêm `--include-blog` cho `slimcrm_recon.py` / `slimcrm_extract.py` nếu cần blog.slimcrm.vn.
