@@ -159,23 +159,47 @@ def looks_like_js(url: str) -> bool:
     return path.endswith((".js", ".mjs")) or "/js/" in path or "/javascript/" in path
 
 
-def is_migratable_asset(url: str) -> bool:
+def host_matches_source(host: str, source_domain: str, include_subdomains: bool = True) -> bool:
+    host = (host or "").lower().removeprefix("www.")
+    domain = (source_domain or "").lower().removeprefix("www.")
+    if not host or not domain:
+        return False
+    if host == domain:
+        return True
+    if include_subdomains and host.endswith("." + domain):
+        return True
+    return False
+
+
+def is_migratable_asset(
+    url: str,
+    source_domain: str | None = None,
+    include_subdomains: bool = True,
+) -> bool:
     if not url:
         return False
     host = urlparse(url).netloc.lower().removeprefix("www.")
     if host in SKIP_HOSTS:
         return False
-    if host in MIGRATABLE_HOSTS or host.endswith(".slimcrm.vn") or host.endswith(".slim.vn"):
-        return (
-            looks_like_image(url)
-            or looks_like_font(url)
-            or looks_like_css(url)
-            or looks_like_js(url)
-        )
-    return False
+    in_scope = host in MIGRATABLE_HOSTS or host.endswith(".slimcrm.vn") or host.endswith(".slim.vn")
+    if source_domain:
+        in_scope = in_scope or host_matches_source(host, source_domain, include_subdomains)
+    if not in_scope:
+        return False
+    return (
+        looks_like_image(url)
+        or looks_like_font(url)
+        or looks_like_css(url)
+        or looks_like_js(url)
+    )
 
 
-def extract_asset_urls(html: str, base_url: str) -> list[str]:
+def extract_asset_urls(
+    html: str,
+    base_url: str,
+    source_domain: str | None = None,
+    include_subdomains: bool = True,
+) -> list[str]:
     soup = BeautifulSoup(html, "lxml")
     base = page_base_url(base_url)
     found: set[str] = set()
@@ -204,7 +228,7 @@ def extract_asset_urls(html: str, base_url: str) -> list[str]:
             url = normalize_url(val, base)
             if tag.name == "link" and "stylesheet" in (tag.get("rel") or []):
                 url = resolve_slimweb_file_url(url) or url
-            if is_migratable_asset(url):
+            if is_migratable_asset(url, source_domain, include_subdomains):
                 found.add(url)
 
         if tag.has_attr("srcset"):
@@ -213,14 +237,14 @@ def extract_asset_urls(html: str, base_url: str) -> list[str]:
                 for item in srcset.split(","):
                     part = item.strip().split()[0] if item.strip() else ""
                     url = normalize_url(part, base)
-                    if is_migratable_asset(url):
+                    if is_migratable_asset(url, source_domain, include_subdomains):
                         found.add(url)
 
     for match in re.finditer(r"url\(([^)]+)\)", html):
         raw = match.group(1).strip("'\"")
         url = normalize_url(raw, base)
         url = resolve_slimweb_file_url(url) or url
-        if is_migratable_asset(url):
+        if is_migratable_asset(url, source_domain, include_subdomains):
             found.add(url)
 
     return sorted(found)

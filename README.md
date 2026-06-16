@@ -57,14 +57,11 @@ python runners/import_manifest.py --ping-only --env config.env
 
 ## Skill cho agent
 
-Copy `skills/aiweb-migrate/` vào:
+Copy `skills/aiweb-migrate/` vào Cursor skills hoặc đọc trực tiếp từ repo.
 
-| Agent | Đường dẫn |
-|-------|-----------|
-| Cursor (user) | `~/.cursor/skills/aiweb-migrate/` |
-| Cursor (project) | `aiweb/.cursor/skills/aiweb-migrate/` |
+**Input migrate:** user cung cấp `domain` + `start_url` → agent recon → lập kế hoạch → chờ xác nhận → extract/import.
 
-Đọc **`skills/aiweb-migrate/SKILL.md`** — pipeline migrate + bảng action API.
+Đọc **`skills/aiweb-migrate/SKILL.md`** — pipeline generic + scraper theo domain.
 
 ## Tài liệu thêm
 

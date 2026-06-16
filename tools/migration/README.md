@@ -1,6 +1,13 @@
-# SlimCRM → AI Web Migration Tools
+# Migration Tools — domain bất kỳ → AI Web
 
-Pipeline migrate **landing slimcrm.vn** (không gồm blog.slimcrm.vn mặc định).
+Pipeline migrate **landing + blog** từ **bất kỳ domain** sang AI Web qua Migration API.
+
+## Input
+
+| Tham số | Ví dụ |
+|---------|-------|
+| `--domain` | `example.com` |
+| `--url` | `https://example.com/` (có thể lặp) |
 
 ## Asset migrate
 
@@ -10,8 +17,6 @@ Import từ domain cũ: **ảnh, CSS, JS, font** → `uploads/migrate/{domain}/`
 
 Catalog read-only: `aiweb_core/data/migration/{domain}.json` + tab **Tài nguyên migrate** (Quản lý ảnh).
 
-URL trùng giữa nhiều trang → import **một lần**, các trang sau **reuse** qua `migration_assets`.
-
 ## Cài đặt
 
 ```bash
@@ -19,35 +24,43 @@ pip install -r tools/migration/requirements.txt
 cp tools/migration/config.example.env tools/migration/config.env
 ```
 
-Tạo API key: AIPage → **Cài đặt → API Agent** (scope migration) → copy vào `MIGRATION_API_KEY`.
-
 ```env
 AIWEB_BASE=http://localhost/aiweb
 AIWEB_ROOT=D:/Xampp/htdocs/aiweb
 MIGRATION_API_KEY=aiw_...
 ```
 
-## Chạy slimcrm.vn (full landing)
+## Quy trình (mọi domain)
 
 ```bash
 cd tools/migration
 
-# 1. Inventory
-python scrapers/slimcrm_recon.py
+# 1. Khảo sát
+python scrapers/site_recon.py --domain example.com --url https://example.com/ --sitemap
 
-# 2. Extract manifest (pilot trước nếu cần)
-python scrapers/slimcrm_extract.py --pilot
-python scrapers/slimcrm_extract.py
+# 2. Xem kế hoạch — chờ user chọn trang
+python runners/review_inventory_plan.py --file output/example_com_inventory.json
 
-# 3. Import + publish
+# 3. Extract manifest
+python scrapers/site_extract.py --domain example.com --pilot 5
+python scrapers/site_extract.py --domain example.com   # full sau khi user chọn all
+
+# 4. Import
+python runners/review_manifest_plan.py --file output/example_com_manifest.json
 python runners/import_manifest.py --env config.env \
-  --file output/slimcrm_manifest_landing.json --force --publish
+  --file output/example_com_manifest.json --force --publish
 ```
 
 ## URL công khai sau migrate
 
-`https://your-domain/{slug}` — ví dụ `/home`, `/tinhnang` (không phải `/p/{slug}`).
+`https://your-domain/{slug}` — ví dụ `/home`, `/tinhnang` (tùy cấu hình site).
 
-## Blog
+## Scraper theo domain (tuỳ chọn)
 
-Thêm `--include-blog` cho `slimcrm_recon.py` / `slimcrm_extract.py` nếu cần blog.slimcrm.vn.
+Nếu site phức tạp, dùng scraper riêng trong `scrapers/` — vẫn xuất cùng schema manifest.
+
+| Domain | Script |
+|--------|--------|
+| slimcrm.vn | `slimcrm_recon.py` + `slimcrm_extract.py` |
+| ai.slim.vn | `ai_slim_extract.py` |
+| *generic* | `site_recon.py` + `site_extract.py` |
