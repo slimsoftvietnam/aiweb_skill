@@ -55,6 +55,26 @@ python runners/import_manifest.py --env config.env \
 
 `https://your-domain/{slug}` — ví dụ `/home`, `/tinhnang` (tùy cấu hình site).
 
+### Nginx root (không có rewrite `/uploads/`)
+
+Trong `config.env`:
+
+```env
+MIGRATION_USE_NGINX_ROOT_PATH=1
+# hoặc MIGRATION_UPLOAD_PREFIX=aiweb_core/uploads
+```
+
+Import sẽ ghi HTML với `/aiweb_core/uploads/migrate/...` và tắt `rewrite_assets` phía server.
+
+**Site đã import trước đó** — chạy một lần:
+
+```bash
+python runners/reprocess_upload_urls.py --env config.env --dry-run
+python runners/reprocess_upload_urls.py --env config.env
+```
+
+Local Apache/XAMPP: **không** bật flag trên (giữ mặc định `uploads/`).
+
 ## Scraper theo domain (tuỳ chọn)
 
 Nếu site phức tạp, dùng scraper riêng trong `scrapers/` — vẫn xuất cùng schema manifest.

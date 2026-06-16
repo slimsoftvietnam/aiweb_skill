@@ -188,6 +188,32 @@ AIWEB_ROOT=/path/to/aiweb
 MIGRATION_API_KEY=aiw_...
 ```
 
+### Nginx document root (slimcrm.vn, ai.slim.vn, …)
+
+Nginx **không đọc** `.htaccess`. URL `/uploads/...` sẽ 404 dù file nằm trong `aiweb_core/uploads/`.
+
+**Local Apache / XAMPP:** không thêm gì (mặc định `uploads/` + `.htaccess` rewrite).
+
+**Production Nginx root:** thêm vào `config.env`:
+
+```env
+MIGRATION_USE_NGINX_ROOT_PATH=1
+# hoặc: MIGRATION_UPLOAD_PREFIX=aiweb_core/uploads
+```
+
+`import_manifest.py` sẽ:
+- rewrite HTML phía client → `/aiweb_core/uploads/migrate/...`
+- gửi `rewrite_assets: false` để API không ghi đè lại `uploads/`
+
+**Site đã import trước khi bật flag:**
+
+```bash
+python runners/reprocess_upload_urls.py --env config.env --dry-run
+python runners/reprocess_upload_urls.py --env config.env
+```
+
+File vật lý vẫn ở `aiweb_core/uploads/migrate/` — chỉ đổi URL trong HTML/DB.
+
 ### Cấu hình API key
 
 **Khuyến nghị:** AIPage → **Cài đặt → API Agent** → Tạo API key → copy vào `MIGRATION_API_KEY`.
@@ -219,7 +245,7 @@ Kỳ vọng: `Migration API OK` và `{"success":true,"service":"aiweb-migration"
     → (3) Extract → manifest.json
     → (4) Trình lại plan từ manifest; dry-run
     → (5) Import tài nguyên (ảnh, CSS, JS, font) → Migration API + JSON catalog
-    → (6) Rewrite link trong HTML (`rewrite_assets: true`)
+    → (6) Rewrite link trong HTML (Apache: `rewrite_assets: true` trên API; Nginx root: rewrite client + `rewrite_assets: false`)
     → (7) Upsert categories → landing → blog posts
     → (8) verify → publish (nếu user yêu cầu)
 ```

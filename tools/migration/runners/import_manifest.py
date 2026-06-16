@@ -14,6 +14,11 @@ from typing import Any
 
 import httpx
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from lib.env_config import load_env_file, use_client_side_asset_rewrite  # noqa: E402
+from lib.migration_api import api_call, ping_migration_api  # noqa: E402
+from lib.migration_urls import rewrite_migrated_field, rewrite_migrated_text  # noqa: E402
+
 ROOT = Path(__file__).resolve().parents[1]
 OUTPUT_DIR = ROOT / "output"
 LOG_PATH = OUTPUT_DIR / "slimcrm_import_log.jsonl"
@@ -22,43 +27,40 @@ DEFAULT_BASE = "http://localhost/aiweb"
 ASSET_BATCH_SIZE = 40
 
 
-def load_env_file(path: Path) -> None:
-    if not path.exists():
-        return
-    for line in path.read_text(encoding="utf-8").splitlines():
-        line = line.strip()
-        if not line or line.startswith("#") or "=" not in line:
-            continue
-        key, value = line.split("=", 1)
-        os.environ.setdefault(key.strip(), value.strip())
-
-
-def api_call(
+def fetch_asset_map(
     client: httpx.Client,
     base: str,
     key: str,
-    payload: dict[str, Any],
-    retries: int = 3,
-) -> dict[str, Any]:
-    url = f"{base.rstrip('/')}/api/migration.php"
-    headers = {
-        "Authorization": f"Bearer {key}",
-        "Content-Type": "application/json",
-    }
-    last_error = ""
-    for attempt in range(retries):
-        try:
-            resp = client.post(url, headers=headers, json=payload, timeout=120.0)
-            data = resp.json() if resp.content else {}
-            if resp.status_code >= 400 and not data.get("success"):
-                last_error = data.get("error") or resp.text
-                time.sleep(1.0 * (attempt + 1))
-                continue
-            return data
-        except Exception as exc:  # noqa: BLE001
-            last_error = str(exc)
-            time.sleep(1.0 * (attempt + 1))
-    return {"success": False, "error": last_error or "unknown error"}
+    source_domain: str,
+) -> dict:
+    result = api_call(
+        client,
+        base,
+        key,
+        {"action": "get_asset_map", "source_domain": source_domain},
+    )
+    if not result.get("success"):
+        return {}
+    raw = result.get("map") or {}
+    return raw if isinstance(raw, dict) else {}
+
+
+def prepare_content_fields(
+    fields: dict[str, str],
+    asset_map: dict,
+    client_rewrite: bool,
+) -> dict[str, str]:
+    if not client_rewrite:
+        return fields
+
+    prepared = dict(fields)
+    for name in ("html_content", "content", "description"):
+        if name in prepared and prepared[name]:
+            prepared[name], _ = rewrite_migrated_text(prepared[name], asset_map)
+    for name in ("seo_favicon", "seo_og_image", "featured_image"):
+        if name in prepared and prepared[name]:
+            prepared[name] = rewrite_migrated_field(prepared[name], asset_map)
+    return prepared
 
 
 def log_event(path: Path, event: dict[str, Any]) -> None:
@@ -152,6 +154,8 @@ def import_manifest_file(
         "categories": 0,
         "landings": 0,
         "blog_posts": 0,
+        "product_categories": 0,
+        "products": 0,
         "assets_ok": 0,
         "assets_failed": 0,
         "errors": 0,
@@ -162,6 +166,16 @@ def import_manifest_file(
         ok, failed = import_assets(client, base, key, source_domain, assets, dry_run, log_path)
         stats["assets_ok"] += ok
         stats["assets_failed"] += failed
+
+    client_rewrite = use_client_side_asset_rewrite()
+    asset_map: dict = {}
+    if client_rewrite:
+        asset_map = fetch_asset_map(client, base, key, source_domain)
+        if not asset_map:
+            print(
+                f"  Warning: MIGRATION_USE_NGINX_ROOT_PATH bật nhưng asset map rỗng "
+                f"cho {source_domain} — URL có thể chưa được rewrite đúng."
+            )
 
     for cat in manifest.get("categories") or []:
         source_key = cat["source_key"]
@@ -199,20 +213,29 @@ def import_manifest_file(
         source_key = page["source_key"]
         if not force_upsert and already_imported(log_path, "upsert_landing", source_key, source_domain):
             continue
+        page_fields = prepare_content_fields(
+            {
+                "html_content": page.get("html_content", ""),
+                "seo_favicon": page.get("seo_favicon", ""),
+                "seo_og_image": page.get("seo_og_image", ""),
+            },
+            asset_map,
+            client_rewrite,
+        )
         payload = {
             "action": "upsert_landing",
             "source_domain": source_domain,
             "source_key": source_key,
             "slug": page["slug"],
             "title": page["title"],
-            "html_content": page.get("html_content", ""),
+            "html_content": page_fields.get("html_content", ""),
             "seo_description": page.get("seo_description", ""),
             "seo_keywords": page.get("seo_keywords", ""),
-            "seo_favicon": page.get("seo_favicon", ""),
-            "seo_og_image": page.get("seo_og_image", ""),
+            "seo_favicon": page_fields.get("seo_favicon", ""),
+            "seo_og_image": page_fields.get("seo_og_image", ""),
             "language": page.get("language", "vi"),
             "is_published": True if publish else page.get("is_published", False),
-            "rewrite_assets": True,
+            "rewrite_assets": not client_rewrite,
             "dry_run": dry_run,
         }
         result = api_call(client, base, key, payload)
@@ -238,20 +261,28 @@ def import_manifest_file(
         source_key = post["source_key"]
         if already_imported(log_path, "upsert_blog_post", source_key, source_domain):
             continue
+        post_fields = prepare_content_fields(
+            {
+                "content": post.get("content", ""),
+                "featured_image": post.get("featured_image", ""),
+            },
+            asset_map,
+            client_rewrite,
+        )
         payload = {
             "action": "upsert_blog_post",
             "source_domain": source_domain,
             "source_key": source_key,
             "slug": post["slug"],
             "title": post["title"],
-            "content": post.get("content", ""),
+            "content": post_fields.get("content", ""),
             "category_slug": post.get("category_slug", ""),
-            "featured_image": post.get("featured_image", ""),
+            "featured_image": post_fields.get("featured_image", ""),
             "status": "published" if publish else post.get("status", "draft"),
             "published_at": post.get("published_at", ""),
             "seo_description": post.get("seo_description", ""),
             "language": post.get("language", "vi"),
-            "rewrite_assets": True,
+            "rewrite_assets": not client_rewrite,
             "dry_run": dry_run,
         }
         result = api_call(client, base, key, payload)
@@ -273,15 +304,89 @@ def import_manifest_file(
         )
         time.sleep(0.2)
 
+    for cat in manifest.get("product_categories") or []:
+        source_key = cat["source_key"]
+        if already_imported(log_path, "upsert_product_category", source_key, source_domain):
+            continue
+        payload = {
+            "action": "upsert_product_category",
+            "source_domain": source_domain,
+            "source_key": source_key,
+            "name": cat["name"],
+            "slug": cat["slug"],
+            "sort_order": cat.get("sort_order", 0),
+            "dry_run": dry_run,
+        }
+        result = api_call(client, base, key, payload)
+        ok = bool(result.get("success"))
+        if ok:
+            stats["product_categories"] += 1
+        else:
+            stats["errors"] += 1
+        log_event(
+            log_path,
+            {
+                "action": "upsert_product_category",
+                "source_domain": source_domain,
+                "source_key": source_key,
+                "ok": ok,
+                "error": result.get("error"),
+                "dry_run": dry_run,
+            },
+        )
+        time.sleep(0.2)
+
+    for product in manifest.get("products") or []:
+        source_key = product["source_key"]
+        if already_imported(log_path, "upsert_product", source_key, source_domain):
+            continue
+        product_fields = prepare_content_fields(
+            {"description": product.get("description", "")},
+            asset_map,
+            client_rewrite,
+        )
+        images = product.get("images", [])
+        if client_rewrite and isinstance(images, list):
+            images = [
+                rewrite_migrated_field(str(img), asset_map) if isinstance(img, str) else img
+                for img in images
+            ]
+        payload = {
+            "action": "upsert_product",
+            "source_domain": source_domain,
+            "source_key": source_key,
+            "slug": product["slug"],
+            "name": product["name"],
+            "description": product_fields.get("description", ""),
+            "price": product.get("price", 0),
+            "status": product.get("status", "available"),
+            "category_slug": product.get("category_slug", ""),
+            "category_key": product.get("category_key", ""),
+            "images": images,
+            "sort_order": product.get("sort_order", 0),
+            "rewrite_assets": not client_rewrite,
+            "dry_run": dry_run,
+        }
+        result = api_call(client, base, key, payload)
+        ok = bool(result.get("success"))
+        if ok:
+            stats["products"] += 1
+        else:
+            stats["errors"] += 1
+        log_event(
+            log_path,
+            {
+                "action": "upsert_product",
+                "source_domain": source_domain,
+                "source_key": source_key,
+                "ok": ok,
+                "error": result.get("error"),
+                "dry_run": dry_run,
+            },
+        )
+        time.sleep(0.2)
+
     return stats
-
-
-def ping(client: httpx.Client, base: str, key: str) -> bool:
-    url = f"{base.rstrip('/')}/api/migration.php?action=ping"
-    headers = {"Authorization": f"Bearer {key}"}
-    resp = client.get(url, headers=headers, timeout=30.0)
-    data = resp.json() if resp.content else {}
-    return bool(data.get("success"))
 
 
 def list_entities(client: httpx.Client, base: str, key: str, source_domain: str) -> dict:
@@ -327,13 +432,20 @@ def main() -> int:
     load_env_file(args.env)
     base = os.environ.get("AIWEB_BASE", DEFAULT_BASE).rstrip("/")
     key = os.environ.get("MIGRATION_API_KEY", "")
+    if use_client_side_asset_rewrite():
+        from lib.env_config import get_migration_upload_prefix
+
+        print(f"Nginx root mode: URL prefix = {get_migration_upload_prefix()}")
     if not key:
         print("Missing MIGRATION_API_KEY. Copy config.example.env to config.env")
         return 1
 
     with httpx.Client() as client:
-        if not ping(client, base, key):
+        ok, ping_error = ping_migration_api(client, base, key)
+        if not ok:
             print(f"Migration API ping failed for {base}")
+            if ping_error:
+                print(ping_error)
             return 1
         print(f"Migration API OK: {base}")
 
@@ -349,6 +461,8 @@ def main() -> int:
             "categories": 0,
             "landings": 0,
             "blog_posts": 0,
+            "product_categories": 0,
+            "products": 0,
             "assets_ok": 0,
             "assets_failed": 0,
             "errors": 0,
@@ -366,7 +480,7 @@ def main() -> int:
                 force_upsert=args.force,
             )
             for k, v in stats.items():
-                totals[k] += v
+                totals[k] = totals.get(k, 0) + v
             print(f"  -> {stats}")
 
         domains = ["slimcrm.vn"]

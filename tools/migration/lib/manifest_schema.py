@@ -16,6 +16,10 @@ def validate_manifest(data: dict[str, Any]) -> list[str]:
         elif not isinstance(data[key], list):
             errors.append(f"{key} must be a list")
 
+    for key in ("product_categories", "products"):
+        if key in data and not isinstance(data[key], list):
+            errors.append(f"{key} must be a list")
+
     for i, cat in enumerate(data.get("categories") or []):
         for field in ("source_key", "name", "slug"):
             if not cat.get(field):
@@ -32,5 +36,15 @@ def validate_manifest(data: dict[str, Any]) -> list[str]:
         for field in ("source_key", "slug", "title"):
             if not post.get(field):
                 errors.append(f"blog_posts[{i}] missing {field}")
+
+    for i, cat in enumerate(data.get("product_categories") or []):
+        for field in ("source_key", "name", "slug"):
+            if not cat.get(field):
+                errors.append(f"product_categories[{i}] missing {field}")
+
+    for i, product in enumerate(data.get("products") or []):
+        for field in ("source_key", "slug", "name"):
+            if not product.get(field):
+                errors.append(f"products[{i}] missing {field}")
 
     return errors
