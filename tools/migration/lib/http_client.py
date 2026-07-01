@@ -7,7 +7,7 @@ from typing import Optional
 
 import httpx
 
-DEFAULT_UA = "Mozilla/5.0 (compatible; AiwebMigration/1.0; +https://slimcrm.vn)"
+DEFAULT_UA = "Mozilla/5.0 (compatible; AIWebMigration/1.0)"
 DEFAULT_TIMEOUT = 30.0
 DEFAULT_DELAY = 0.35
 

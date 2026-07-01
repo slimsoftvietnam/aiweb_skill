@@ -21,10 +21,16 @@ from lib.migration_urls import rewrite_migrated_field, rewrite_migrated_text  # 
 
 ROOT = Path(__file__).resolve().parents[1]
 OUTPUT_DIR = ROOT / "output"
-LOG_PATH = OUTPUT_DIR / "slimcrm_import_log.jsonl"
-
 DEFAULT_BASE = "http://localhost/aiweb"
 ASSET_BATCH_SIZE = 40
+
+
+def domain_file_key(domain: str) -> str:
+    return (domain or "unknown").strip().lower().replace(".", "_").replace("/", "_")
+
+
+def log_path_for_domain(source_domain: str) -> Path:
+    return OUTPUT_DIR / f"{domain_file_key(source_domain)}_import_log.jsonl"
 
 
 def fetch_asset_map(
@@ -149,7 +155,7 @@ def import_manifest_file(
     force_upsert: bool = False,
 ) -> dict[str, int]:
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    source_domain = manifest.get("source_domain", "slimcrm.vn")
+    source_domain = manifest.get("source_domain", "unknown")
     stats = {
         "categories": 0,
         "landings": 0,
@@ -415,9 +421,9 @@ def collect_manifest_files(paths: list[Path], glob_pattern: str | None) -> list[
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Import slimcrm manifest via Migration API")
+    parser = argparse.ArgumentParser(description="Import AIWeb migration manifest via Migration API")
     parser.add_argument("--file", action="append", type=Path, help="Manifest JSON file")
-    parser.add_argument("--glob", help="Glob under tools/migration, e.g. output/slimcrm_manifest_*_landing.json")
+    parser.add_argument("--glob", help="Glob under tools/migration, e.g. output/*_manifest*.json")
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument("--publish", action="store_true", help="Publish landings and blog posts")
     parser.add_argument(
@@ -469,13 +475,15 @@ def main() -> int:
         }
         for manifest_path in files:
             print(f"Importing {manifest_path} (dry_run={args.dry_run})")
+            manifest_data = json.loads(manifest_path.read_text(encoding="utf-8"))
+            manifest_domain = manifest_data.get("source_domain") or "unknown"
             stats = import_manifest_file(
                 client,
                 base,
                 key,
                 manifest_path,
                 args.dry_run,
-                LOG_PATH,
+                log_path_for_domain(manifest_domain),
                 args.publish,
                 force_upsert=args.force,
             )
@@ -483,9 +491,12 @@ def main() -> int:
                 totals[k] = totals.get(k, 0) + v
             print(f"  -> {stats}")
 
-        domains = ["slimcrm.vn"]
-        if any("blog.slimcrm.vn" == json.loads(f.read_text(encoding="utf-8")).get("source_domain") for f in files):
-            domains.append("blog.slimcrm.vn")
+        domains = sorted(
+            {
+                json.loads(f.read_text(encoding="utf-8")).get("source_domain") or "unknown"
+                for f in files
+            }
+        )
         for domain in domains:
             entities = list_entities(client, base, key, domain)
             count = len(entities.get("entities") or [])

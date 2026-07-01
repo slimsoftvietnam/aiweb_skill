@@ -65,6 +65,7 @@ def extract_landing(client: HttpClient, entry: dict, source_domain: str) -> dict
         "seo_og_image": meta.get("og_image") or "",
         "language": "vi",
         "is_published": False,
+        "source_url": url,
         "_assets": assets,
         "_source_url": url,
     }
@@ -89,6 +90,7 @@ def extract_blog(client: HttpClient, entry: dict, source_domain: str) -> dict:
         "featured_image": meta.get("og_image") or "",
         "status": "draft",
         "published_at": meta.get("published_at") or "",
+        "source_url": url,
         "_assets": assets,
         "_source_url": url,
     }

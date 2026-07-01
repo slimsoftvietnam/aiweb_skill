@@ -1,86 +1,81 @@
-# Migration Tools — domain bất kỳ → AI Web
+# Migration Tools - Any Domain To AIWeb
 
-Pipeline migrate **landing + blog** từ **bất kỳ domain** sang AI Web qua Migration API.
+Generic pipeline for migrating landing pages, blog posts, assets, and optional
+products from any source domain into any licensed AIWeb/AIPage target through
+the Agent/Migration API.
 
-## Input
-
-| Tham số | Ví dụ |
-|---------|-------|
-| `--domain` | `example.com` |
-| `--url` | `https://example.com/` (có thể lặp) |
-
-## Asset migrate
-
-Import từ domain cũ: **ảnh, CSS, JS, font** → `uploads/migrate/{domain}/`.
-
-**Giữ nguyên CDN (không import):** Google Fonts, GA, GTM, jsdelivr, cdnjs.
-
-Catalog read-only: `aiweb_core/data/migration/{domain}.json` + tab **Tài nguyên migrate** (Quản lý ảnh).
-
-## Cài đặt
-
-```bash
-pip install -r tools/migration/requirements.txt
-cp tools/migration/config.example.env tools/migration/config.env
-```
-
-```env
-AIWEB_BASE=http://localhost/aiweb
-AIWEB_ROOT=D:/Xampp/htdocs/aiweb
-MIGRATION_API_KEY=aiw_...
-```
-
-## Quy trình (mọi domain)
+## Setup
 
 ```bash
 cd tools/migration
-
-# 1. Khảo sát
-python scrapers/site_recon.py --domain example.com --url https://example.com/ --sitemap
-
-# 2. Xem kế hoạch — chờ user chọn trang
-python runners/review_inventory_plan.py --file output/example_com_inventory.json
-
-# 3. Extract manifest
-python scrapers/site_extract.py --domain example.com --pilot 5
-python scrapers/site_extract.py --domain example.com   # full sau khi user chọn all
-
-# 4. Import
-python runners/review_manifest_plan.py --file output/example_com_manifest.json
-python runners/import_manifest.py --env config.env \
-  --file output/example_com_manifest.json --force --publish
+pip install -r requirements.txt
+cp config.example.env config.env
 ```
 
-## URL công khai sau migrate
+`config.env`:
 
-`https://your-domain/{slug}` — ví dụ `/home`, `/tinhnang` (tùy cấu hình site).
+```env
+AIWEB_BASE=https://target-aiweb.example
+AIWEB_ROOT=D:/path/to/aiweb
+MIGRATION_API_KEY=aiw_...
+```
 
-### Nginx root (không có rewrite `/uploads/`)
+`AIWEB_BASE` is the public site root. Do not append `aiweb_core`; runners call
+`{AIWEB_BASE}/api/migration.php`.
 
-Trong `config.env`:
+For Nginx hosts that serve uploads directly from `aiweb_core/uploads`, add:
 
 ```env
 MIGRATION_USE_NGINX_ROOT_PATH=1
-# hoặc MIGRATION_UPLOAD_PREFIX=aiweb_core/uploads
 ```
 
-Import sẽ ghi HTML với `/aiweb_core/uploads/migrate/...` và tắt `rewrite_assets` phía server.
+or:
 
-**Site đã import trước đó** — chạy một lần:
+```env
+MIGRATION_UPLOAD_PREFIX=aiweb_core/uploads
+```
+
+## Workflow
 
 ```bash
-python runners/reprocess_upload_urls.py --env config.env --dry-run
-python runners/reprocess_upload_urls.py --env config.env
+# 1. Recon
+python scrapers/site_recon.py --domain example.com --url https://example.com/ --sitemap
+
+# 2. Review plan and ask the user to choose all, numbers, or cancel
+python runners/review_inventory_plan.py --file output/example_com_inventory.json
+
+# 3. Extract selected pages
+python scrapers/site_extract.py --domain example.com --only home,about
+
+# 4. Review manifest
+python runners/review_manifest_plan.py --file output/example_com_manifest.json
+
+# 5. Dry-run import
+python runners/import_manifest.py --env config.env --file output/example_com_manifest.json --dry-run
+
+# 6. Real import after explicit confirmation
+python runners/import_manifest.py --env config.env --file output/example_com_manifest.json --force
 ```
 
-Local Apache/XAMPP: **không** bật flag trên (giữ mặc định `uploads/`).
+Add `--publish` only when the user explicitly wants imported landings/posts to
+be public immediately. Otherwise preserve draft status from the manifest.
 
-## Scraper theo domain (tuỳ chọn)
+## Assets
 
-Nếu site phức tạp, dùng scraper riêng trong `scrapers/` — vẫn xuất cùng schema manifest.
+The generic extractor imports assets from the selected source domain and its
+subdomains, excluding common external hosts such as Google Fonts, GTM, GA,
+jsdelivr, and cdnjs. Assets are stored by AIWeb under:
 
-| Domain | Script |
-|--------|--------|
-| slimcrm.vn | `slimcrm_recon.py` + `slimcrm_extract.py` |
-| ai.slim.vn | `ai_slim_extract.py` |
-| *generic* | `site_recon.py` + `site_extract.py` |
+```text
+uploads/migrate/{source_domain}/{css|js|fonts|img}/...
+```
+
+The import runner reuses existing asset mappings and can rewrite HTML through
+the API or client-side for Nginx upload prefixes.
+
+## Domain-Specific Scrapers
+
+Use `site_recon.py` and `site_extract.py` first. Add a domain-specific scraper
+only when a source site has unusual routing, hidden APIs, or markup that the
+generic extractor cannot classify reliably. Domain-specific scrapers must output
+the same manifest schema used by `site_extract.py`.

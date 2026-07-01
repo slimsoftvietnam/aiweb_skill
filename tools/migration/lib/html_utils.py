@@ -19,16 +19,6 @@ SKIP_HOSTS = {
     "cdn.jsdelivr.net",
     "cdnjs.cloudflare.com",
 }
-MIGRATABLE_HOSTS = {
-    "slimcrm.vn",
-    "www.slimcrm.vn",
-    "blog.slimcrm.vn",
-    "slimweb.vn",
-    "www.slimweb.vn",
-    "ai.slim.vn",
-    "www.ai.slim.vn",
-}
-
 
 def slugify_vi(text: str, max_len: int = 80) -> str:
     text = (text or "").strip().lower()
@@ -59,7 +49,7 @@ def normalize_url(url: str, base: str) -> str:
     if not url.startswith(("http://", "https://")):
         url = urljoin(page_base_url(base) if base.startswith("http") else base, url)
     parsed = urlparse(url)
-    scheme = "https" if parsed.scheme in ("http", "https") else parsed.scheme
+    scheme = parsed.scheme
     netloc = parsed.netloc.lower()
     if netloc.startswith("www."):
         netloc = netloc[4:]
@@ -181,9 +171,10 @@ def is_migratable_asset(
     host = urlparse(url).netloc.lower().removeprefix("www.")
     if host in SKIP_HOSTS:
         return False
-    in_scope = host in MIGRATABLE_HOSTS or host.endswith(".slimcrm.vn") or host.endswith(".slim.vn")
     if source_domain:
-        in_scope = in_scope or host_matches_source(host, source_domain, include_subdomains)
+        in_scope = host_matches_source(host, source_domain, include_subdomains)
+    else:
+        in_scope = bool(host)
     if not in_scope:
         return False
     return (

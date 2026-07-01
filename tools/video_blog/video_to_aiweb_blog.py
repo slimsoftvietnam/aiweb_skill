@@ -25,11 +25,11 @@ import requests
 from PIL import Image, ImageDraw, ImageEnhance, ImageFilter
 
 
-DEFAULT_BASE = "https://ai.slim.vn"
+DEFAULT_BASE = "http://localhost/aiweb"
 DEFAULT_FRAME_COUNT = 8
 DEFAULT_CATEGORY_NAME = "AI Agent"
 DEFAULT_CATEGORY_SLUG = "ai-agent"
-DEFAULT_LOGO_URL = "https://ai.slim.vn/uploads/upload/mig_37637ef12e8e.png"
+DEFAULT_LOGO_URL = ""
 BRAND_FRAME_SIZE = (1200, 750)
 
 
@@ -324,8 +324,15 @@ def draw_decorations(draw: ImageDraw.ImageDraw, width: int, height: int) -> None
 def download_logo(workdir: Path, logo_url: str = DEFAULT_LOGO_URL) -> Path:
     assets_dir = workdir / "assets"
     assets_dir.mkdir(parents=True, exist_ok=True)
-    logo_path = assets_dir / "slimai-logo.png"
+    logo_path = assets_dir / "aiweb-logo.png"
     if logo_path.exists() and logo_path.stat().st_size > 0:
+        return logo_path
+    if not logo_url:
+        img = Image.new("RGBA", (320, 96), (255, 255, 255, 0))
+        draw = ImageDraw.Draw(img)
+        draw.rounded_rectangle((4, 8, 316, 88), radius=22, fill=(255, 255, 255, 230))
+        draw.text((34, 30), "AIWeb", fill=(193, 95, 60, 255))
+        img.save(logo_path)
         return logo_path
     response = requests.get(logo_url, timeout=30)
     response.raise_for_status()

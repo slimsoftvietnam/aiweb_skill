@@ -1,0 +1,4 @@
+interface:
+  display_name: "AIWeb"
+  short_description: "Operate and migrate any AIWeb site"
+  default_prompt: "Use $aiweb to connect to my AIWeb site, inspect status, and help manage or migrate content."
