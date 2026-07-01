@@ -59,6 +59,23 @@ explicit user confirmation before deleting or purging content; destructive API
 payloads must include the API's required confirmation field, such as
 `"confirm": "DELETE"` when documented by AIWeb.
 
+## Human Prompt Examples
+
+Understand these simple prompt styles:
+
+- "Connect to https://example.com with API key aiw_... and show status."
+- "List all landing pages and blog posts."
+- "Create a draft landing page for AI consulting."
+- "Improve SEO for page /home without changing layout."
+- "Write and publish a blog post about AI automation."
+- "Upload this image and give me the public URL."
+- "Update site title, meta description, and brand name."
+- "Create a shop product named Starter Package with price 990000."
+- "Migrate https://old-site.com into https://example.com, dry-run first."
+- "Recon the old site and let me choose pages to migrate."
+- "Turn this YouTube video into an AIWeb blog post."
+- "Verify imported pages from old-site.com and report broken assets."
+
 ## Migration Workflow
 
 Use the migration tools in `tools/migration` for source website import. The

@@ -62,6 +62,42 @@ video-to-blog.
 
 Copy `skills/aiweb-migrate/` when you only want migration-specific triggering.
 
+## Use Cases And Simple Prompts
+
+Use `$aiweb` for normal AIWeb operations. Use `$aiweb-migrate` when the main
+task is moving content from another website into AIWeb.
+
+| Use case | What it does | Simple prompt |
+| --- | --- | --- |
+| Connect to a site | Checks API health, version, enabled modules, and content counts. | `Use $aiweb to connect to https://my-site.com with API key aiw_... and show me the site status.` |
+| List content | Shows current landing pages, blog posts, categories, products, or media. | `Use $aiweb to list all landing pages on https://my-site.com.` |
+| Create a landing page | Creates or updates a landing page from provided HTML/content. | `Use $aiweb to create a draft landing page called "AI Consulting" on https://my-site.com.` |
+| Edit a landing page | Reads an existing page, updates copy/HTML/SEO, then saves it. | `Use $aiweb to improve the SEO and headline of landing page /home.` |
+| Set homepage | Sets the default index page for the AIWeb site. | `Use $aiweb to set /home as the homepage.` |
+| Write a blog post | Creates a category if needed, writes a post, and saves as draft or published. | `Use $aiweb to write and publish a blog post about AI automation for small businesses.` |
+| Fix blog content | Reads a post and patches title, body, SEO description, images, or category. | `Use $aiweb to update the blog post /blog/my-post and make the intro clearer.` |
+| Upload media | Uploads an image/file and returns the usable AIWeb URL. | `Use $aiweb to upload this image and give me the public URL.` |
+| Update settings | Reads or patches brand, SEO, tracking code, schema, shop, or module settings. | `Use $aiweb to update the site title, meta description, and brand name.` |
+| Manage shop products | Lists, creates, updates, or deletes products when shop actions are enabled. | `Use $aiweb to create a product called "Starter Package" with price 990000.` |
+| Migrate a website | Recons source URLs, shows a plan, extracts selected pages, dry-runs, then imports after approval. | `Use $aiweb-migrate to migrate https://old-site.com into https://my-aiweb.com. Start with the homepage only.` |
+| Migrate selected pages | Imports only the URLs or plan numbers that the user approves. | `Use $aiweb-migrate to recon https://old-site.com, then migrate pages 1,3,5-8 only.` |
+| Migrate blog posts | Imports old blog posts into AIWeb blog with categories and images. | `Use $aiweb-migrate to migrate the blog from https://old-site.com/blog into my AIWeb site as drafts.` |
+| Video to blog | Turns a YouTube/source video into an AIWeb blog post with video frames as images. | `Use $aiweb to turn this YouTube video into a draft AIWeb blog post: https://youtube.com/watch?v=...` |
+| Verify imported content | Checks migrated entities, public URLs, and asset URLs after import. | `Use $aiweb to verify all pages imported from old-site.com and report broken assets.` |
+| Clean up migrated content | Deletes or purges migrated entities only after explicit confirmation. | `Use $aiweb to show me what was imported from old-site.com before I decide whether to delete it.` |
+
+Human-friendly Vietnamese examples:
+
+- `Kết nối site https://my-site.com bằng API key aiw_... và báo tình trạng.`
+- `Liệt kê toàn bộ landing page và bài blog hiện có.`
+- `Tạo landing page nháp cho dịch vụ tư vấn AI.`
+- `Tối ưu SEO trang /home, giữ nguyên bố cục hiện tại.`
+- `Viết 5 bài blog về tự động hóa AI, lưu nháp trước.`
+- `Migrate trang chủ từ https://old-site.com sang AIWeb, dry-run trước rồi hỏi tôi xác nhận.`
+- `Quét website cũ và cho tôi chọn trang nào cần migrate.`
+- `Chuyển video YouTube này thành bài blog AIWeb, có ảnh cắt từ video.`
+- `Kiểm tra các trang đã migrate từ old-site.com có ảnh nào lỗi không.`
+
 ## Migration
 
 Required input:
