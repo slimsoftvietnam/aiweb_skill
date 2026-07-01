@@ -1,5 +1,7 @@
 # AIWeb Skills - Agent & Migration Tools
 
+English | [Tieng Viet](README.vi.md)
+
 Generic Codex/Cursor skills and Python tools for operating any licensed
 AIWeb/AIPage site through Agent API and for migrating landing/blog content from
 any source domain into any AIWeb target.
@@ -11,10 +13,10 @@ separate `aiweb` repo for the runtime.
 
 ```text
 aiweb_skill/
-├── skills/aiweb/           # Generic AIWeb Agent API + migration skill
-├── skills/aiweb-migrate/   # Migration-focused workflow skill
-├── tools/migration/        # Any source domain -> any AIWeb target
-└── tools/video_blog/       # Video/YouTube -> AIWeb blog workflow
+|-- skills/aiweb/           # Generic AIWeb Agent API + migration skill
+|-- skills/aiweb-migrate/   # Migration-focused workflow skill
+|-- tools/migration/        # Any source domain -> any AIWeb target
+`-- tools/video_blog/       # Video/YouTube -> AIWeb blog workflow
 ```
 
 ## Quick Install
@@ -85,18 +87,6 @@ task is moving content from another website into AIWeb.
 | Video to blog | Turns a YouTube/source video into an AIWeb blog post with video frames as images. | `Use $aiweb to turn this YouTube video into a draft AIWeb blog post: https://youtube.com/watch?v=...` |
 | Verify imported content | Checks migrated entities, public URLs, and asset URLs after import. | `Use $aiweb to verify all pages imported from old-site.com and report broken assets.` |
 | Clean up migrated content | Deletes or purges migrated entities only after explicit confirmation. | `Use $aiweb to show me what was imported from old-site.com before I decide whether to delete it.` |
-
-Human-friendly Vietnamese examples:
-
-- `Kết nối site https://my-site.com bằng API key aiw_... và báo tình trạng.`
-- `Liệt kê toàn bộ landing page và bài blog hiện có.`
-- `Tạo landing page nháp cho dịch vụ tư vấn AI.`
-- `Tối ưu SEO trang /home, giữ nguyên bố cục hiện tại.`
-- `Viết 5 bài blog về tự động hóa AI, lưu nháp trước.`
-- `Migrate trang chủ từ https://old-site.com sang AIWeb, dry-run trước rồi hỏi tôi xác nhận.`
-- `Quét website cũ và cho tôi chọn trang nào cần migrate.`
-- `Chuyển video YouTube này thành bài blog AIWeb, có ảnh cắt từ video.`
-- `Kiểm tra các trang đã migrate từ old-site.com có ảnh nào lỗi không.`
 
 ## Migration
 
