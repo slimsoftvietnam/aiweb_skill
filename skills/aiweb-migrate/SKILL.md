@@ -8,13 +8,23 @@ description: >-
   source video/YouTube video into an AIWeb blog post.
 ---
 
-# AIWeb Migration
+# AIWeb Migration (skill sync: AIWeb **2.3.10**)
 
 Use this skill for migration work only. For general AIWeb operations, use the
 generic `aiweb` skill in this repo.
 
 Do not assume any fixed source or target domain. Treat `slimcrm.vn` and
 `ai.slim.vn` only as examples or optional domain-specific scrapers.
+
+## Target version
+
+- **Recommended target:** AIWeb **2.3.10+** (build 20260715).
+- Before import: `GET {AIWEB_BASE}/api/agent.php?action=status` — if `version` is
+  below `2.3.10`, tell the user to patch via **Settings → Update** then re-run status.
+- After target upgrade: open admin once so DB migrations run (`forms`, …).
+- Imported landing HTML may include `data-aiweb-widget="form"` only if target has
+  **Forms module enabled** (2.3.10+); otherwise widget resolves empty / 404 embed.
+- Pull latest `aiweb_skill` after upgrading AIWeb so agent knows new URLs and gates.
 
 ## Required Inputs
 

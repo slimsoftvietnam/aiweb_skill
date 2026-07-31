@@ -1,32 +1,103 @@
 ---
 name: aiweb
 description: >-
-  Operate and automate any AIWeb/AIPage site through its Agent API and migration
-  tools. Use when Codex needs to connect to an AIWeb site, inspect health and
-  actions, manage landing pages, blog posts, categories, media, settings, shop
-  products, or migrate landing/blog content from any source domain into any
-  licensed AIWeb target. Also use for AIWeb video-to-blog publishing workflows.
+  Operate and automate any AIWeb/AIPage site (v2.3.10+) through Agent API and
+  migration tools. Covers landing, blog, shop, digital products, forms (lead
+  capture), helpdesk, affiliate, security pages, i18n VI/EN, and video-to-blog.
+  Use when connecting to an AIWeb site, managing content/settings/media, or when
+  the user works in the aiweb PHP repo. Synced with aiweb 2.3.10.
 ---
 
-# AIWeb Generic Agent
+# AIWeb Generic Agent (skill sync: AIWeb **2.3.10**)
 
-Use this skill for any AIWeb/AIPage instance. Do not assume a fixed domain such
-as `ai.slim.vn`, `slimcrm.vn`, or localhost. Always derive the target from the
-user's `AIWEB_BASE`/URL and API key.
+Use this skill for any licensed AIWeb/AIPage instance. Do **not** assume a fixed
+domain (`ai.slim.vn`, localhost, …). Derive `AIWEB_BASE` and API key from the
+user.
 
-## Required Inputs
+**PHP app repo:** [github.com/slimsoftvietnam/aiweb](https://github.com/slimsoftvietnam/aiweb)  
+**This repo:** skills + Python migration tools only (no PHP runtime).
 
-- Target AIWeb base URL, for example `https://example.com`
-- Agent API key, normally `aiw_...`
-- Task scope: inspect, edit content, migrate, publish, settings, media, shop, or video-to-blog
+Vietnamese dev/ops reference (same version): `aiweb` repo →
+`.cursor/skills/aiweb/SKILL.md` and `docs/TINH_NANG.md`.
 
-Never print the full API key back to the user. Use it only in request headers or
-temporary local env/config files.
+---
 
-## Connection Check
+## 0. Version compatibility (read first)
 
-Prefer `/api/agent.php` for broad AIWeb actions. Use `/api/migration.php` only
-for migration-compatible runners.
+Many customers still run **old AIWeb + old skill**. Match skill to app version.
+
+| AIWeb app | This skill | What changes |
+| --- | --- | --- |
+| **2.3.10+** | **Current** (2026-07-31) | Forms module, `/security`, `security.txt`, login rate limit, editor image API auth |
+| 2.3.6 – 2.3.9 | Mostly OK | No forms tables/UI; ignore forms URLs and `module_forms_enabled` |
+| 2.2.x – 2.3.5 | Partial | Digital/helpdesk may differ; always call `action=status` first |
+| &lt; 2.2 | Upgrade app first | Legacy section-builder UI removed; use **Cài đặt → Cập nhật** patch ZIP |
+
+**After upgrading AIWeb:**
+
+1. Pull latest `aiweb_skill` (`git pull`) and re-copy `skills/aiweb/` into Cursor/Codex skills.
+2. Open the site once (admin login) so SQLite migrations run (`forms`, `login_attempts`, …).
+3. `GET …/api/agent.php?action=status` — confirm `version` ≥ `2.3.10`.
+4. Re-test Agent API key scopes in **Settings → API Agent**.
+
+---
+
+## 1. Architecture quick reference
+
+| Piece | Path (inside `aiweb` repo) |
+| --- | --- |
+| Front controller | `index.php` → `?action=` |
+| Pretty URLs | `.htaccess` |
+| Admin pages | `aiweb_core/pages/*.php` |
+| Logic | `aiweb_core/includes/` |
+| Public API | `aiweb_core/api/*.php` → `/api/{name}.php` |
+| SQLite DB | `aiweb_core/data/landing_pages.db` |
+| Uploads | `aiweb_core/uploads/` |
+| Local config | `aiweb_core/config/config.php` (gitignored) |
+
+**PHP 7.4+**, no framework. License via `slim.vn` or local `dev_mode.php` (dev only;
+exclude from production zip).
+
+**New DB tables (2.3.10):** `forms`, `form_fields`, `form_submissions`, `login_attempts`.
+
+---
+
+## 2. Public URLs (frequent)
+
+| URL | Purpose |
+| --- | --- |
+| `/`, `/{slug}` | Published landing |
+| `/blog`, `/blog/{slug}` | Blog |
+| `/shop`, `/shop/{slug}` | Physical shop |
+| `/digital`, `/digital/{slug}` | Digital products |
+| `/digital-access?token=` | Digital delivery |
+| `/order-access?token=` | Shop order management (Telegram link) |
+| `/form/embed/{slug}` | Standalone form embed (2.3.10+, module on) |
+| `/support` | Public helpdesk |
+| `/security` | Security policy + disclosure (2.3.10+) |
+| `/.well-known/security.txt` | RFC 9116 (`security_txt.php`) |
+| `/api/agent.php` | Agent REST API |
+| `/api/submit_form.php` | POST public form submission (2.3.10+) |
+| `/login` | Admin |
+
+**i18n:** single setting `public_ui_lang` (`vi` \| `en`) in Settings. Public scopes
+include `blog`, `shop`, `digital`, `helpdesk`, `support`, `license`, `security`.
+
+---
+
+## 3. Required inputs
+
+- Target **AIWEB_BASE** (public site root, **no** `/aiweb_core` suffix)
+- Agent API key (`aiw_…`)
+- Task: inspect, content, settings, shop, digital, migration, video-to-blog, or PHP dev
+
+Never print the full API key. Use headers or local `config.env` only.
+
+---
+
+## 4. Connection check
+
+Prefer `/api/agent.php`. Use `/api/migration.php` only for legacy runners.
 
 ```powershell
 $env:AIWEB_BASE = "https://example.com"
@@ -34,74 +105,103 @@ $env:MIGRATION_API_KEY = "aiw_..."
 python tools/migration/runners/import_manifest.py --ping-only --env tools/migration/config.env
 ```
 
-If `httpx` has TLS/network trouble on Windows but Python `requests` works, use a
-small requests wrapper for API checks and report the transport issue clearly.
-
 Core checks:
 
 - `GET {AIWEB_BASE}/api/agent.php?action=ping`
-- `GET {AIWEB_BASE}/api/agent.php?action=status`
+- `GET {AIWEB_BASE}/api/agent.php?action=status` → read `version`, module flags, counts
 - `GET {AIWEB_BASE}/api/agent.php?action=list_actions`
 
-## Common Agent API Actions
+If Windows `httpx` TLS fails but `requests` works, use requests and report clearly.
 
-Read actions before writing:
+---
 
-- Content read: `list_landings`, `get_landing`, `list_blog_posts`, `get_blog_post`, `list_categories`
-- Content write: `upsert_landing`, `upsert_blog_post`, `upsert_category`, `publish_batch`, `set_default_index_page`
-- Migration: `import_asset`, `import_assets`, `get_asset_map`, `rewrite_html`, `import_manifest`, `list_entities`
-- Media: `upload_asset_base64`, `list_images`, `delete_image`
-- Settings: `get_settings`, `patch_settings`
-- Shop when enabled: `list_products`, `upsert_product`, `delete_product`
+## 5. Agent API actions
 
-Use `dry_run: true` where supported before destructive or bulk writes. Require an
-explicit user confirmation before deleting or purging content; destructive API
-payloads must include the API's required confirmation field, such as
-`"confirm": "DELETE"` when documented by AIWeb.
+Read `list_actions` before writes. Prefer `dry_run: true` when supported.
 
-## Human Prompt Examples
+| Group | Examples |
+| --- | --- |
+| Read | `list_landings`, `get_landing`, `list_blog_posts`, `get_blog_post`, `list_categories`, `list_products`, `list_images` |
+| Write | `upsert_landing`, `upsert_blog_post`, `upsert_category`, `publish_batch`, `set_default_index_page` |
+| Migration | `import_asset`, `import_assets`, `import_manifest`, `rewrite_html`, `get_asset_map`, `list_entities` |
+| Media | `upload_asset_base64`, `list_images`, `delete_image` |
+| Settings | `get_settings`, `patch_settings` |
+| Shop | `upsert_product`, `delete_product` (when shop enabled) |
+| Digital | scopes `digital.read/write/delete` on keys (when digital module on) |
 
-Understand these simple prompt styles:
+Destructive calls need explicit user confirmation and API fields such as
+`"confirm": "DELETE"` when documented.
 
-- "Connect to https://example.com with API key aiw_... and show status."
+**Forms (2.3.10):** managed in admin UI (`/forms`, `/form_submissions`), **not** Agent API
+yet. Public submit: `POST /api/submit_form.php` with `form_slug`, `field_{key}`, captcha fields.
+
+---
+
+## 6. Forms module (2.3.10+)
+
+Admin-only automation unless using public submit API.
+
+1. **Settings → Forms:** enable `module_forms_enabled`; optional reCAPTCHA/Turnstile keys.
+2. Admin `?action=forms` — create form, fields: text, email, phone, textarea, select, checkbox.
+3. Captcha per form: `math`, `checkbox`, `recaptcha_v2/v3`, `turnstile`.
+4. Notifications: admin email + Telegram; optional auto-reply (`{{form_name}}`, `{{email}}`, …).
+5. Embed in landing (editor toolbar **Form** or HTML):
+   - `data-aiweb-widget="form" data-form="{slug}"`
+   - `<!-- AIWEB:FORM slug="{slug}" -->`
+   - iframe URL: `/form/embed/{slug}`
+6. Submissions: `?action=form_submissions` (CSV export).
+7. Rate limit: 5 submissions / IP / 10 minutes.
+
+If `module_forms_enabled` is off or version &lt; 2.3.10, skip this section.
+
+---
+
+## 7. Security notes (2.3.10)
+
+For operators and PHP developers:
+
+- Login redirect sanitized (`aiweb_sanitize_redirect_url`) — no open redirect on `?redirect=`.
+- Admin login rate limit: 8 attempts / 15 min / IP (`login_attempts` table).
+- `get_all_images.php` requires **session auth** (`requireAuthApi`) — unauthenticated → 401.
+- Emergency break-glass login: `config.php` constants `EMERGENCY_ACCESS_*`; CLI
+  `php aiweb_core/scripts/generate_emergency_access.php --password "…" --write-config`.
+- `security_contact_email` setting (fallback admin notify email) feeds `/security` and `security.txt`.
+
+Do not commit `config.php`, `license.key`, or emergency password hashes.
+
+---
+
+## 8. Human prompt examples
+
+- "Connect to https://example.com with API key aiw_… and show status and version."
 - "List all landing pages and blog posts."
 - "Create a draft landing page for AI consulting."
-- "Improve SEO for page /home without changing layout."
+- "Improve SEO for /home without changing layout."
 - "Write and publish a blog post about AI automation."
-- "Upload this image and give me the public URL."
-- "Update site title, meta description, and brand name."
-- "Create a shop product named Starter Package with price 990000."
-- "Migrate https://old-site.com into https://example.com, dry-run first."
-- "Recon the old site and let me choose pages to migrate."
+- "Upload this image and return the public URL."
+- "Patch site title and meta description via patch_settings."
+- "Create shop product Starter Package price 990000."
+- "Migrate https://old-site.com — dry-run first, wait for my approval."
 - "Turn this YouTube video into an AIWeb blog post."
-- "Verify imported pages from old-site.com and report broken assets."
+- "On 2.3.10 site, enable forms module and describe how to embed form slug contact-us."
 
-## Migration Workflow
+---
 
-Use the migration tools in `tools/migration` for source website import. The
-workflow is intentionally gated:
+## 9. Migration workflow
 
-1. Collect `source_domain`, one or more `start_url`, target `AIWEB_BASE`, and API key.
-2. Run recon:
-   `python tools/migration/scrapers/site_recon.py --domain {source_domain} --url {start_url} --sitemap`
-3. Review inventory:
-   `python tools/migration/runners/review_inventory_plan.py --file output/{domain_key}_inventory.json`
-4. Ask the user to choose `all`, numbers like `1,3,5-8`, or `cancel`.
-5. Extract only selected pages:
-   `python tools/migration/scrapers/site_extract.py --domain {source_domain} --only key1,key2`
-6. Review manifest:
-   `python tools/migration/runners/review_manifest_plan.py --file output/{domain_key}_manifest.json`
-7. Dry-run import:
-   `python tools/migration/runners/import_manifest.py --env config.env --file output/{domain_key}_manifest.json --dry-run`
-8. Import for real only after confirmation. Default to draft unless the user asks to publish.
-9. Verify with `list_entities`, public URLs, and asset URLs.
+Use `tools/migration`. Gated workflow — see skill `aiweb-migrate` for details.
 
-Do not import real data before the user has seen the inventory plan and the
-manifest plan.
+1. Collect `source_domain`, `start_url`, target `AIWEB_BASE`, API key.
+2. Recon → inventory plan → **user chooses** pages.
+3. Extract → manifest plan → dry-run → import after confirmation.
+4. Default **draft** unless user asks to publish.
+5. Verify `list_entities`, public URLs, asset HTTP 200.
 
-## Environment File
+Do not import before user approves inventory and manifest plans.
 
-Create a temporary `config.env` per target when useful:
+---
+
+## 10. Environment file
 
 ```env
 AIWEB_BASE=https://target-domain.com
@@ -109,36 +209,55 @@ AIWEB_ROOT=D:/path/to/aiweb
 MIGRATION_API_KEY=aiw_...
 ```
 
-For Nginx document roots where `/uploads/...` is not rewritten to
-`aiweb_core/uploads/...`, add:
+`AIWEB_BASE` = public root (e.g. `http://localhost/aiweb`), **not** `…/aiweb_core`.
+
+Nginx docroot without upload rewrite:
 
 ```env
 MIGRATION_USE_NGINX_ROOT_PATH=1
 ```
 
-or:
+or `MIGRATION_UPLOAD_PREFIX=aiweb_core/uploads`.
 
-```env
-MIGRATION_UPLOAD_PREFIX=aiweb_core/uploads
+---
+
+## 11. Video to blog
+
+`tools/video_blog/video_to_aiweb_blog.py`:
+
+1. `prepare --url "VIDEO_URL" --output-root output/video_blogs`
+2. Edit `article.html`, `article_meta.json`, `frame_plan.json`.
+3. `publish-draft` after user approval (command name legacy; publishes `status: published`).
+
+Use `src="/uploads/upload/..."` in HTML (leading slash) for blog URLs.
+
+---
+
+## 12. PHP dev conventions (aiweb repo)
+
+| Task | Hint |
+| --- | --- |
+| Admin label | `ui_lang_admin.php` (vi + en), `ui_admin()` |
+| Public label | `ui_lang.php`, `ui_t()` |
+| New route | `.htaccess` + `pages/` |
+| New API | `api/` + auth/license as needed |
+| Editor image APIs | session auth for list endpoints |
+| Widget | `includes/widgets/` + `widget_resolver.php` |
+
+```powershell
+php -l aiweb_core\pages\settings.php
+php aiweb_core\scripts\check_ui_admin_lang_keys.php
+php aiweb_core\scripts\seed_forms_demo.php
 ```
 
-## Video To Blog
+---
 
-Use `tools/video_blog/video_to_aiweb_blog.py` when the user provides a YouTube
-or source video and wants an AIWeb blog post.
+## 13. Reporting
 
-1. Prepare artifacts:
-   `python tools/video_blog/video_to_aiweb_blog.py prepare --url "VIDEO_URL" --output-root output/video_blogs`
-2. Edit `article.html`, `article_meta.json`, and `frame_plan.json`.
-3. Publish only when the user approves. Note: the command named
-   `publish-draft` currently publishes with `status: published`.
+Report to the user:
 
-## Reporting
-
-Report:
-
-- Target base URL and service version when available
-- Counts before/after: landings, posts, categories, products
-- URLs or slugs changed
-- Whether writes were dry-run or real
-- Any network, license, or auth issue without exposing secrets
+- Target base URL and **app version** from `status`
+- Counts: landings, posts, categories, products (if applicable)
+- Whether forms module is enabled (2.3.10+)
+- URLs/slugs changed; dry-run vs real writes
+- Auth, license, or network issues **without** exposing secrets

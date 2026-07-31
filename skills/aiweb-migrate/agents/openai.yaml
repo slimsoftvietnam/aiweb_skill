@@ -1,4 +1,4 @@
 interface:
-  display_name: "AIWeb Migration"
-  short_description: "Migrate content into any AIWeb site"
-  default_prompt: "Use $aiweb-migrate to recon a source website, review a migration plan, and import selected pages into AIWeb."
+  display_name: "AIWeb Migration 2.3.10"
+  short_description: "Migrate content into AIWeb 2.3.10+ targets"
+  default_prompt: "Use $aiweb-migrate to recon a source site, review plans, and import selected pages into AIWeb 2.3.10."

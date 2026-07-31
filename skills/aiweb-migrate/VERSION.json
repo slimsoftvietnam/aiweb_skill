@@ -1,0 +1,7 @@
+{
+  "skill": "aiweb-migrate",
+  "aiweb_version": "2.3.10",
+  "aiweb_build": "20260715",
+  "skill_sync_date": "2026-07-31",
+  "notes": "Target 2.3.10+; forms widget in landing HTML after module enabled on target"
+}

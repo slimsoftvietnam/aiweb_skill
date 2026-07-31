@@ -1,4 +1,4 @@
 interface:
-  display_name: "AIWeb"
-  short_description: "Operate and migrate any AIWeb site"
-  default_prompt: "Use $aiweb to connect to my AIWeb site, inspect status, and help manage or migrate content."
+  display_name: "AIWeb 2.3.10"
+  short_description: "Operate AIWeb: content, shop, digital, forms, migration"
+  default_prompt: "Use $aiweb to connect to my AIWeb 2.3.10 site, check version/status, and help manage or migrate content."
