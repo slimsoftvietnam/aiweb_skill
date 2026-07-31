@@ -1,6 +1,6 @@
 # AIWeb Skills - Agent & Migration Tools
 
-**Skill sync:** AIWeb app **2.3.10** (2026-07-31) — forms, security.txt, login hardening.
+**Skill sync:** AIWeb app **2.3.10** (2026-07-31) — forms module.
 
 English | [Tieng Viet](README.vi.md)
 
@@ -17,11 +17,11 @@ If customers still use an older skill copy or AIWeb &lt; 2.3.10:
 
 1. Update the **PHP app** via **Settings → Update** (patch ZIP) to **2.3.10+**.
 2. `git pull` this repo and re-copy `skills/aiweb/` (and `skills/aiweb-migrate/` if needed) into Cursor/Codex skills.
-3. Log in to admin once so SQLite migrations run (`forms`, `login_attempts`, …).
+3. Log in to admin once so the database upgrades (`forms`, …).
 4. Verify: `curl "{AIWEB_BASE}/api/agent.php?action=status" -H "Authorization: Bearer aiw_KEY"`.
-5. Read `skills/aiweb/VERSION.json` — `aiweb_version` must match the target site.
+5. Read `skills/aiweb/VERSION.json` — `aiweb_version` should match the target site.
 
-Skill version **2.3.6** docs are obsolete for forms, `/security`, and editor image API auth.
+Skill docs for **2.3.6** are outdated for forms and other 2.3.10 features.
 
 ## Structure
 
@@ -95,8 +95,7 @@ task is moving content from another website into AIWeb.
 | Upload media | Uploads an image/file and returns the usable AIWeb URL. | `Use $aiweb to upload this image and give me the public URL.` |
 | Update settings | Reads or patches brand, SEO, tracking code, schema, shop, or module settings. | `Use $aiweb to update the site title, meta description, and brand name.` |
 | Manage shop products | Lists, creates, updates, or deletes products when shop actions are enabled. | `Use $aiweb to create a product called "Starter Package" with price 990000.` |
-| Lead forms (2.3.10+) | Enable forms module in Settings; create form in admin; embed on landing or use `/form/embed/{slug}`. | `Use $aiweb to explain how to enable forms on my 2.3.10 site and embed form contact-us on /home.` |
-| Security page (2.3.10+) | Public `/security` and `/.well-known/security.txt` for responsible disclosure. | `Use $aiweb to check my security.txt URL and what email it shows.` |
+| Lead forms (2.3.10+) | Enable forms in Settings; create form in admin; embed on landing or `/form/embed/{slug}`. | `Use $aiweb to explain how to enable forms on my site and embed form contact-us on /home.` |
 | Migrate a website | Recons source URLs, shows a plan, extracts selected pages, dry-runs, then imports after approval. | `Use $aiweb-migrate to migrate https://old-site.com into https://my-aiweb.com. Start with the homepage only.` |
 | Migrate selected pages | Imports only the URLs or plan numbers that the user approves. | `Use $aiweb-migrate to recon https://old-site.com, then migrate pages 1,3,5-8 only.` |
 | Migrate blog posts | Imports old blog posts into AIWeb blog with categories and images. | `Use $aiweb-migrate to migrate the blog from https://old-site.com/blog into my AIWeb site as drafts.` |

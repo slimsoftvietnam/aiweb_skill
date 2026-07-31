@@ -1,6 +1,6 @@
 # AIWeb Skills - Công cụ Agent và Migration
 
-**Đồng bộ skill:** AIWeb app **2.3.10** (2026-07-31) — biểu mẫu, security.txt, hardening đăng nhập.
+**Đồng bộ skill:** AIWeb app **2.3.10** (2026-07-31) — module biểu mẫu.
 
 [English](README.md) | Tiếng Việt
 
@@ -17,11 +17,11 @@ Nhiều khách vẫn dùng skill cũ hoặc AIWeb &lt; 2.3.10:
 
 1. Cập nhật **app PHP** qua **Cài đặt → Cập nhật** (ZIP patch) lên **2.3.10+**.
 2. `git pull` repo này và copy lại `skills/aiweb/` (và `skills/aiweb-migrate/` nếu cần) vào Cursor/Codex.
-3. Đăng nhập admin một lần để SQLite migrate (`forms`, `login_attempts`, …).
+3. Đăng nhập admin một lần để database nâng cấp (`forms`, …).
 4. Kiểm tra: `curl "{AIWEB_BASE}/api/agent.php?action=status" -H "Authorization: Bearer aiw_KEY"`.
-5. Đọc `skills/aiweb/VERSION.json` — `aiweb_version` phải khớp site đích.
+5. Đọc `skills/aiweb/VERSION.json` — `aiweb_version` nên khớp site đích.
 
-Skill ghi **2.3.6** đã lỗi thời với biểu mẫu, `/security`, và auth API ảnh editor.
+Skill **2.3.6** đã lỗi thời với biểu mẫu và tính năng 2.3.10.
 
 ## Cấu Trúc
 
@@ -95,8 +95,7 @@ vụ chính là chuyển nội dung từ website khác vào AIWeb.
 | Upload media | Upload ảnh/file và trả về URL dùng được trên AIWeb. | `Dùng $aiweb upload ảnh này và gửi tôi public URL.` |
 | Cập nhật settings | Đọc hoặc sửa brand, SEO, tracking code, schema, shop hoặc module settings. | `Dùng $aiweb cập nhật site title, meta description và brand name.` |
 | Quản lý sản phẩm shop | Liệt kê, tạo, sửa hoặc xóa sản phẩm khi shop action được bật. | `Dùng $aiweb tạo sản phẩm "Gói Starter" giá 990000.` |
-| Biểu mẫu (2.3.10+) | Bật module trong Cài đặt; tạo form admin; nhúng landing hoặc `/form/embed/{slug}`. | `Dùng $aiweb hướng dẫn bật biểu mẫu trên site 2.3.10 và nhúng form contact-us vào /home.` |
-| Trang bảo mật (2.3.10+) | `/security` và `/.well-known/security.txt` (RFC 9116). | `Dùng $aiweb kiểm tra URL security.txt và email hiển thị.` |
+| Biểu mẫu (2.3.10+) | Bật trong Cài đặt; tạo form admin; nhúng landing hoặc `/form/embed/{slug}`. | `Dùng $aiweb hướng dẫn bật biểu mẫu và nhúng form contact-us vào /home.` |
 | Migrate website | Quét URL nguồn, đưa plan, extract, dry-run rồi import sau khi được duyệt. | `Dùng $aiweb-migrate migrate https://old-site.com vào https://my-aiweb.com, bắt đầu với trang chủ.` |
 | Migrate trang được chọn | Chỉ import URL hoặc số thứ tự trang mà user duyệt. | `Dùng $aiweb-migrate quét https://old-site.com rồi migrate trang 1,3,5-8.` |
 | Migrate blog | Import bài blog cũ vào blog AIWeb, gồm danh mục và ảnh. | `Dùng $aiweb-migrate migrate blog từ https://old-site.com/blog vào AIWeb, lưu nháp trước.` |
