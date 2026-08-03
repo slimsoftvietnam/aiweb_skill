@@ -1,7 +1,7 @@
 {
   "skill": "aiweb",
-  "aiweb_version": "2.3.10",
-  "aiweb_build": "20260715",
-  "skill_sync_date": "2026-07-31",
-  "notes": "Forms module"
+  "aiweb_version": "2.3.11",
+  "aiweb_build": "20260803",
+  "skill_sync_date": "2026-08-03",
+  "notes": "Forms Agent API (forms.read/write/delete)"
 }
