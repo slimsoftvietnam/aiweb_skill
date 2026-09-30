@@ -76,8 +76,9 @@ Prefer **Settings and admin menus** before API calls. In-app help: **Guide**
 - **Discover:** `action=list_actions` — all actions + scopes
 - **Test:** **Settings → API Agent** test button, or `action=ping` / `action=status`
 - **Read before write:** `list_landings`, `list_blog_posts`, `list_forms`, …
-- **Write:** `upsert_landing`, `upsert_blog_post`, `upsert_product`, `upsert_form`, …
-- **Migration:** `import_manifest` — use **dry_run** first; skill `aiweb-migrate` for full workflow
+- **Landing create/update on your site:** `upsert_landing_page` — scope `content.write` (see **4c**)
+- **Other writes:** `upsert_product`, `upsert_form`, `patch_blog_content`, …
+- **Migrate old site:** `upsert_landing`, `import_manifest` — skill `aiweb-migrate`; use **dry_run** first
 - **Destructive:** send `"confirm": "DELETE"` in JSON body
 
 Full action list: `guide_public.php` on your site or `action=list_actions`.
@@ -95,6 +96,40 @@ Never print the owner's full API key in responses.
 | `forms.read` / `forms.write` / `forms.delete` | forms, submissions |
 | `media.*`, `settings.*` | images, site settings |
 | `agent` | full access (default key scope in admin) |
+
+### 4c. Landing — Agent API
+
+| Goal | Action | Scope |
+| --- | --- | --- |
+| Create/update pages on the live site (admin or agent) | `upsert_landing_page` | `content.write` |
+| Migrate with `source_domain` + `source_key` | `upsert_landing` | `migration` |
+
+**Recommended edit flow (page already in admin):**
+
+1. `get_landing` with `slug`, `page_id`, or `url` (public URL `https://site.com/{slug}` — API uses the last path segment)
+2. Edit HTML → `upsert_landing_page` with full `html_content` or `sections` array (replaces sections; not a partial merge)
+3. SEO/title only: send metadata fields; omit `html_content` / `sections`
+
+| Action | Scope | Purpose |
+| --- | --- | --- |
+| `list_landings` | `content.read` | List pages |
+| `get_landing` | `content.read` | Page + sections (`include_sections`) |
+| `export_landing` | `content.read` | JSON export |
+| `upsert_landing_page` | `content.write` | Create (`title` + `slug` + HTML) or update (`slug` / `page_id` / `url` + content or metadata) |
+| `publish_batch` | `content.write` | Publish by slug (`type`: `landing`) |
+| `delete_landing` | `content.delete` | Delete — needs `confirm: DELETE` |
+
+**Identify page:** `page_id`, `slug`, `page_url`, `url` / `landing_url` (full public URL).
+
+```json
+{
+  "action": "upsert_landing_page",
+  "url": "https://example.com/about",
+  "html_content": "<main>...</main>"
+}
+```
+
+Use `dry_run: true` to preview `create` vs `update`. Vietnamese detail: `SKILL.vi.md`.
 
 ### 4b. Forms — Agent API (2.3.11+)
 
@@ -137,6 +172,7 @@ Never print the owner's full API key in responses.
 
 ## 5. Version note
 
+- **Latest sync:** `upsert_landing_page` for direct landing create/update via Agent API (`content.write`).
 - **2.3.11+:** Forms Agent API (`forms.read` / `forms.write` / `forms.delete`).
 - **2.3.10+:** Forms module, embed URLs.
 - Older app: update via **Settings → Update** before using new features.
@@ -159,5 +195,6 @@ Never print the owner's full API key in responses.
 - [ ] Guide via **admin UI**, not PHP file edits
 - [ ] Do not expose API keys, passwords, or integration secrets
 - [ ] Confirm before bulk delete; API deletes need `confirm: DELETE`
+- [ ] Landing: use `upsert_landing_page` (not `upsert_landing` except migrate); full `html_content` when replacing HTML
 - [ ] Forms via Agent API: module must be on; public leads still use `submit_form.php`
 - [ ] Match guidance to the site's reported version from `status`

@@ -1,7 +1,7 @@
 {
   "skill": "aiweb",
   "aiweb_version": "2.3.11",
-  "aiweb_build": "20260803",
-  "skill_sync_date": "2026-08-03",
-  "notes": "Forms Agent API (forms.read/write/delete)"
+  "aiweb_build": "20260930",
+  "skill_sync_date": "2026-09-30",
+  "notes": "upsert_landing_page (content.write); SKILL.vi.md full operator guide"
 }
